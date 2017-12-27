@@ -18,7 +18,7 @@ The course mentioned that the list of people was compiled using the data from th
 
 There are two ways I looked at creating new features. When I looked at `total_payments` it was very skewed right so I created a `log_total_payments` to try to get a better picture of things. I also decided that the `to_` and `from_poi` counts could better be represented as a percentage of total emails that person sent or received. I created a `percent_to_poi` feature using `from_this_person_to_poi / from_messages` and a `percent_from_poi` feature using `from_poi_to_this_person / to_messages`.
 
-I took two different approaches to selecting the best features. First I looked at the ANOVA f-values between each feature and then I looked at feature importances for a Decision Tree Classifier. Here are the top six for both.
+I took two different approaches to selecting the best features. First I looked at the ANOVA f-values between each feature and then I looked at feature importances for a Gradient Boosting Classifier. Here are the top six for both.
 
 ### SelectKBest
 
@@ -31,44 +31,49 @@ I took two different approaches to selecting the best features. First I looked a
 | percent_to_poi          | 16.641707 |
 | deferred_income         | 11.595548 |
 
-### Feature Importances
+### Boosted Tree Feature Importances
 
-| feature                 | importancce |
-| ----------------------- | ----------- |
-| exercised_stock_options | 0.255578    |
-| other                   | 0.190136    |
-| percent_to_poi          | 0.136054    |
-| expenses                | 0.119346    |
-| shared_receipt_with_poi | 0.118636    |
-| log_total_payments      | 0.093122    |
+| feature                 | importance     |
+| ----------------------- | -------------- |
+| exercised_stock_options | 0.244999727018 |
+| other                   | 0.162968411753 |
+| shared_receipt_with_poi | 0.148073343323 |
+| percent_to_poi          | 0.13288702193  |
+| expenses                | 0.131139274733 |
+| restricted_stock        | 0.037811224554 |
 
 *Note: NaN values were set to 0 when computing these numbers.
 
-`exercised_stock_options` and `percent_to_poi` show up on both of those lists. `shared_receipt_with_poi` also shows up as #9 on the KBest list, so that's probably worth looking at.
+`exercised_stock_options` and `percent_to_poi` show up on both of those lists. `shared_receipt_with_poi` also shows up as #9 on the KBest list, so that seemed like it was worth looking at.
+
+I ended up choosing the five most important features for my optimized Gradient Boosted model.
 
 ## Algorithm Choice
 
-I ended up using Naive Bayes. I tested Naive Bayes, Random Forests, Gradient Boosting, SVM, and a dummy model. The dummy classifier generates random predictions, respecting the training set class distribution. To test the performance of the models, I looked at precision and recall, which are ways to measure how often things are correctly categorized vs miscategorizations like false negatives and false positives. I took the average recall and precision of the 5 models over 4 cross validation steps and got the following results
+I ended up using a Gradient Boosting classifier. I tested Naive Bayes, Random Forests, Gradient Boosting, SVM, and a dummy model. The dummy classifier generates random predictions, respecting the training set class distribution. To test the performance of the models, I looked at precision and recall, which are ways to measure how often things are correctly categorized vs miscategorizations like false negatives and false positives. I took the average recall and precision of the 5 models over 1000 stratified shuffle splits and got the following results.
 
 | Model             | Avg. Precision | Avg. Recall |
 | ----------------- | -------------- | ----------- |
-| Naive Bayes       | 0.6            | 0.6         |
-| Random Forest     | 0.542          | 0.246       |
-| Gradient Boosting | 0.146          | 0.133       |
-| SVM               | 0.159          | 0.338       |
-| Dummy             | 0.133          | 0.113       |
+| Naive Bayes       | 0.288          | 0.4         |
+| Random Forest     | 0.184          | 0.120       |
+| Gradient Boosting | 0.362          | 0.278       |
+| SVM               | 0.225          | 0.313       |
+| Dummy             | 0.117          | 0.125       |
+
+A problem I had early on was using too few splits. I was just using k-fold cross validation over four or five folds and wasn't getting consistent results when testing. The Udacity live help got me pointed in the right direction with the StratifiedShuffleSplit functionality.
 
 ## Hyper parameter tuning
 
-Tuning parameters is important to improve your accuracy, precision, and recall. Tuning is done by modifying the parameters that the algorithm uses to train your model. Tuning parameters involves a little bit of guessing and a lot of looking at others' research to find reasonable ranges that make sense for your data set. If you don't tune your parameters well, your results are not likely to be precise. For my model, I did not do any tuning, because I chose Naive Bayes which does not have hyper parameters. If I had used Random Forest, I would have used parameters and I could have tuned it by doing a grid search over the hyper parameters. A grid search is a library that tests out every combination of values within a range that you give it.
+Tuning parameters is important to improve your accuracy, precision, and recall. Tuning is done by modifying the parameters that the algorithm uses to train your model. Tuning parameters involves a little bit of guessing and a lot of looking at others' research to find reasonable ranges that make sense for your data set. If you don't tune your parameters well, your results are not likely to be precise.
 
-
+For my model, I followed some suggestions from [Complete Guide to Parameter Tuning in Gradient Boosting (GBM) in Python](https://www.analyticsvidhya.com/blog/2016/02/complete-guide-parameter-tuning-gradient-boosting-gbm-python/). I started off by tuning `n_estimators` and then found a good `max_depth` from there. These values were discovered using the `GridSearchCV` function to look at `n_estimators` from 30 to 80 and `max_depth` from 5 to 15.The site recommended `min_samples_split` of around 0.5-1% of the total values. Our dataset is only 144 samples though, so I figured the default of 2 was probably good right where it was.
 
 ## Validation
 
-Validation involves checking your model to make sure it generalizes well. If you don't validate correctly, you might over fit. Over fitting is when your model gets too specific for the data set that you have trained it on. For example, if you have a model that is trying to recognize cats-- an overfit model would be one that can only recognize cats in boxes, because all of your training sets are just cats in boxes. I validated my analysis by using k-fold cross validation. This validation splits my data set into four smaller, equally sized sets. It then takes one set that it sets apart as a test data set and then it trains on the other three sets of data. It then repeats this process four times until it has reviewed all the data.
+Validation involves checking your model to make sure it generalizes well. If you don't validate correctly, you might over fit. Over fitting is when your model gets too specific for the data set that you have trained it on. For example, if you have a model that is trying to recognize cats-- an overfit model would be one that can only recognize cats in boxes, because all of your training sets are just cats in boxes.
+
+I validated my model by using a stratified shuffle split. Like mentioned above, this worked so much better than my previous k-fold cross validation strategy. It splits the dataset into a bunch of smaller test sets, preserving the percentage of positive/negative samples. I split it into 1000 test sets of ~14 samples each.
 
 ## Evaluation Metrics
 
-Evaluation metrics that I chose include average precision and average recall, I got 60% on each of these. In this data set, we are classifying persons of interest. Of the people we guessed that were persons of interest, 60% of them were actually persons of interest. The recall rate indicates that out of all of the persons of interest, we were able to accurately identify 60% of them. I got an average accuracy of 86%.
-
+Evaluation metrics that I chose include average precision and average recall, I got ~40% on each of these. In this data set, we are classifying persons of interest. Of the people we guessed that were persons of interest, 40% of them were actually persons of interest. The recall rate indicates that out of all of the persons of interest, we were able to accurately identify 40% of them. I got an average accuracy of 84%.
