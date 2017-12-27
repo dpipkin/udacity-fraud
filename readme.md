@@ -4,4 +4,4 @@ This project was completed for the Udacity Data Analyst Nanodegree. The full rep
 
 ## Notes to the Grader
 
-I did a lot of investigation in Jupyter notebooks. The most coherent ones are probably `data investigation.ipynb` and `start over.ipynb`, though.
+I did a lot of investigation in Jupyter notebooks. The most coherent ones are probably `data investigation-Copy2.ipynb` and `start over.ipynb`, though.
